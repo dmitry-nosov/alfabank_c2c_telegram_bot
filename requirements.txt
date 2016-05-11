@@ -1,0 +1,4 @@
+pydocumentdb==1.7.0
+pydub==0.16.4
+requests==2.9.1
+tornado==4.3
