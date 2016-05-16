@@ -6,7 +6,7 @@ The bot works on top of the web server Tornado 4.3, to run it, simply execute th
 ## Technology Stack ##
 * Azure VM
 * Azure DocumentDB
-* Aplfa-Bank UAPI
+* Alfa-Bank UAPI
 
 ## Installation ##
 
