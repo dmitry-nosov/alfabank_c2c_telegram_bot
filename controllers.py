@@ -526,7 +526,7 @@ class RouteConfig(object):
             update_type = ChatMessage.UPDATE_TYPE_MESSAGE
 
         try:
-            chat_message = ChatMessage(message, type=update_type)
+            chat_message = ChatMessage(message, message_type=update_type)
         except ChatMessageNotPrivate: #message must be private
             logging.info("Wrong group type")
             return

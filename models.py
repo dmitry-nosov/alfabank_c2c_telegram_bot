@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+#from pymongo import MongoClient
+#client = MongoClient()
+#db = client.alfa_voice
 import logging
 import requests
 import json
@@ -34,7 +37,7 @@ class ChatMessage(object):
             pass
         return bot_commands
 
-    def __init__(self, message, type=UPDATE_TYPE_MESSAGE):
+    def __init__(self, message, message_type=UPDATE_TYPE_MESSAGE):
         self.is_command = False
         self.command_code = ""
         self.data = ""
@@ -42,8 +45,8 @@ class ChatMessage(object):
         self.has_voice = False
         self.voice_file_id = ""
         self.phone = ""
-        self.message_type = type
-        if type == ChatMessage.UPDATE_TYPE_CALLBACK:
+        self.message_type = message_type
+        if message_type == ChatMessage.UPDATE_TYPE_CALLBACK:
             self.data = message['data']
             message = message['message'] #reuse message from a callback parent
 
@@ -55,7 +58,7 @@ class ChatMessage(object):
 
         self.message_id = message['message_id'] #use in replies
 
-        if type == ChatMessage.UPDATE_TYPE_MESSAGE:        
+        if message_type == ChatMessage.UPDATE_TYPE_MESSAGE:        
             self.bot_commands = self.get_bot_commands(message)
             try:
                 self.phone = message['contact']['phone_number']
