@@ -59,7 +59,7 @@ class AbstractView(object):
 class GetPhoneView(AbstractView):
     @staticmethod
     def get():
-        return {'view_type': ViewParams.VIEW_CUSTOM_KEYBOARD, 'text': MessageText.STATE_UNAUTH_GET_PHONE_NUM, 'controls': [[{'text': u'📱 Отправить номер', 'request_contact': True}]]}
+        return {'view_type': ViewParams.VIEW_CUSTOM_KEYBOARD, 'text': MessageText.STATE_UNAUTH_GET_PHONE_NUM, 'controls': [[{'text': MessageText.SEND_PHONE_NUMBER, 'request_contact': True}]]}
 
 
 class UnauthErrorView(AbstractView):
@@ -75,7 +75,7 @@ class VerifyPhoneView(AbstractView):
 class NoCardInitView(AbstractView):
     @staticmethod
     def get():
-        return {'view_type': ViewParams.VIEW_CUSTOM_KEYBOARD, 'text': MessageText.STATE_NOCARD_INIT_CARD, 'controls': [[{'text': u'/1 💳 Добавить карту'}]]}
+        return {'view_type': ViewParams.VIEW_CUSTOM_KEYBOARD, 'text': MessageText.STATE_NOCARD_INIT_CARD, 'controls': [[{'text': MessageText.ADD_CARD_FIRST}]]}
 
 class NoCardAddCardView(AbstractView):
     @staticmethod
@@ -85,7 +85,7 @@ class NoCardAddCardView(AbstractView):
 class AuthInitView(AbstractView):
     @staticmethod
     def get():
-        return {'view_type': ViewParams.VIEW_CUSTOM_KEYBOARD, 'text': MessageText.STATE_AUTH_INIT, 'controls': [[{'text': u'/1 💵 Перевести'}, {'text': u'/2 💳 Добавить карту'}]]}
+        return {'view_type': ViewParams.VIEW_CUSTOM_KEYBOARD, 'text': MessageText.STATE_AUTH_INIT, 'controls': [[{'text': MessageText.TRANSFER_CARD_AUTH}, {'text': MessageText.ADD_CARD_AUTH}]]}
 
 class AuthSelectCardView(AbstractView):
     @staticmethod
