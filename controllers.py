@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from models import ChatMessage, UserState, ViewParams, UserCard
+from models import ChatMessage, UserState, ViewParams, UserCard, User
 from views import AbstractView, GetPhoneView, UnauthErrorView, VerifyPhoneView, NoCardInitView, NoCardAddCardView, AuthInitView, AuthSelectCardView, AuthTransferView
-from api.alfa_api import AlfaApi
-from custom_exceptions import ChatMessageNotPrivate, AlfaApiError
+from api.alfa_api import AlfaApi, AlfaApiError
+from custom_exceptions import ChatMessageNotPrivate
 from resources import ErrorText, MessageText
 import logging
 import requests
@@ -14,35 +14,37 @@ logging.basicConfig(level=logging.DEBUG)
 
 class AbstractController(object):
     @staticmethod
-    def run_command(user_state, command_code, chat_message):
+    def run_command(user_state, command_code, chat_message, router):
         UserState.set_command_value(chat_message.chat_id, user_state, command_code, "") #empty phone number/confirmation number
         UserState.set_state(chat_message.chat_id, user_state, command_code)
 
-        user_view = RouteConfig.get_route(user_state, command_code)['view']
+        user_view = router.get_route(user_state, command_code)['view']
         view_params = user_view.get()
         view_params.update({'chat_id': chat_message.chat_id})
         user_view.render(**view_params)
 
     @staticmethod
-    def complete_command(user_state, command_code, chat_message):
+    def complete_command(user_state, command_code, chat_message, router):
         pass
 
 class UnauthErrorController(AbstractController):
     @staticmethod
-    def run_command(user_state, command_code, chat_message):
+    def run_command(user_state, command_code, chat_message, router):
         pass #a user must not call it
 
 class GetPhoneController(AbstractController):
 
     @staticmethod
-    def complete_command(user_state, command_code, chat_message):
+    def complete_command(user_state, command_code, chat_message, router):
 
         if chat_message.phone:
             render_context = AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING)
             view_render_extras = {'message_id': render_context['result']['message_id'], 'is_update': True}
 
             try:                
-                AlfaApi.send_phone_number(chat_message.chat_id, chat_message.phone)  
+                user_obj = AlfaApi.send_phone_number(chat_message.chat_id, chat_message.phone)  
+                User.add(chat_message.chat_id, "user_id", user_obj['user_id'])
+
                 UserState.set_command_value(chat_message.chat_id, user_state, command_code, chat_message.phone) #fill phone number
                 command_code = UserState.STATE_UNAUTH_C_VERIFY_PHONE            
                 UserState.set_state(chat_message.chat_id, user_state, command_code)                
@@ -51,7 +53,7 @@ class GetPhoneController(AbstractController):
 
             except AlfaApiError:
                 command_code = UserState.STATE_ERROR
-                user_view, view_params = RouteConfig.get_view(user_state, command_code, chat_message.chat_id)
+                user_view, view_params = router.get_view(user_state, command_code, chat_message.chat_id)
                 view_params.update(view_render_extras)
                 user_view.render(**view_params)
         else:            
@@ -60,7 +62,7 @@ class GetPhoneController(AbstractController):
 
 class VerifyPhoneController(AbstractController):
     @staticmethod
-    def run_command(user_state, command_code, chat_message):
+    def run_command(user_state, command_code, chat_message, router):
         UserState.set_command_value(chat_message.chat_id, user_state, command_code, "") 
         UserState.set_state(chat_message.chat_id, user_state, command_code)
 
@@ -70,7 +72,7 @@ class VerifyPhoneController(AbstractController):
         sms_code = " ".join("{:-<6s}".format(sms_code))
         error = ""
 
-        user_view, view_params = RouteConfig.get_view(user_state, command_code, chat_message.chat_id)
+        user_view, view_params = router.get_view(user_state, command_code, chat_message.chat_id)
 
         view_params['text'] = view_params['text'].format(phone_number=phone_number, sms_code=sms_code, error=error)             
         user_view.render(**view_params)
@@ -102,10 +104,10 @@ class VerifyPhoneController(AbstractController):
         return sms_code, view_render_extras
 
     @staticmethod
-    def complete_command(user_state, command_code, chat_message):
+    def complete_command(user_state, command_code, chat_message, router):
         view_render_extras = {} #need to add this data to update a view instead of redrawing
 
-        user_view, view_params = RouteConfig.get_view(user_state, command_code, chat_message.chat_id)
+        user_view, view_params = router.get_view(user_state, command_code, chat_message.chat_id)
 
         temp_view_params_text = view_params['text']
         key_code = 0
@@ -132,7 +134,11 @@ class VerifyPhoneController(AbstractController):
             or (chat_message.voice)):
             try:
                 AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
-                AlfaApi.send_sms_code(chat_message.chat_id, phone_number, sms_code)  
+                user_obj = AlfaApi.send_sms_code(chat_message.chat_id, phone_number, sms_code)  
+                
+                User.add(chat_id, "access_token", user_obj['access_token'])
+                User.add(chat_id, "refresh_token", user_obj['refresh_token'])
+
                 UserState.set_state(chat_message.chat_id, UserState.STATE_NOCARD, UserState.STATE_NOCARD_C_INIT)
                 view_params['text'] = MessageText.MESSAGE_CORRECT_CODE
                 view_params.update({'force_remove_inline': True})
@@ -154,7 +160,7 @@ class NoCardInitController(AbstractController):
 
 class NoCardAddCardController(AbstractController):
     @staticmethod
-    def run_command(user_state, command_code, chat_message):
+    def run_command(user_state, command_code, chat_message, router):
 
         card_number = ""
         card_month = ""
@@ -167,7 +173,7 @@ class NoCardAddCardController(AbstractController):
         UserState.set_command_value(chat_message.chat_id, user_state, command_code, json.dumps(command_value)) #empty card settings
         UserState.set_state(chat_message.chat_id, user_state, command_code)
 
-        user_view, view_params = RouteConfig.get_view(user_state, command_code, chat_message.chat_id)
+        user_view, view_params = router.get_view(user_state, command_code, chat_message.chat_id)
         
         card_number = " ".join("{:-<16s}".format(card_number))
         card_number = string.join([card_number[i: i+7]+"  " for i in range(0, 32, 8)])
@@ -222,14 +228,14 @@ class NoCardAddCardController(AbstractController):
         error = ""
         try:
             AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
-            AlfaApi.add_card(command_value['card_number'], '20%s%s' % (command_value['card_year'], command_value['card_month']), chat_id = chat_message.chat_id)
+            AlfaApi.add_card(command_value['card_number'], '20%s%s' % (command_value['card_year'], command_value['card_month']), chat_id = chat_message.chat_id, user = User(chat_message.chat_id))
             card_add_success = True
         except AlfaApiError:
             error = ErrorText.ERROR_BANK_ERROR_INLINE
         return card_add_success, error
 
     @staticmethod
-    def complete_command(user_state, command_code, chat_message):
+    def complete_command(user_state, command_code, chat_message, router):
         view_render_extras = {} #need to add this data to update a view instead of redrawing
         card_add_success = False
         error = ""
@@ -246,7 +252,7 @@ class NoCardAddCardController(AbstractController):
             if key_code == ViewParams.KEYBOARD_KEY_OK:
                 card_add_success, error = NoCardAddCardController.check_result(chat_message, view_render_extras, command_value)
 
-            user_view, view_params = RouteConfig.get_view(user_state, command_code, chat_message.chat_id)
+            user_view, view_params = router.get_view(user_state, command_code, chat_message.chat_id)
 
             card_number = ' '.join('{:-<16s}'.format(command_value['card_number']))
             card_number = string.join([card_number[i: i+7]+'  ' for i in range(0, 32, 8)])
@@ -274,23 +280,27 @@ class NoCardAddCardController(AbstractController):
 
 class AuthInitController(AbstractController):
     @staticmethod
-    def complete_command(user_state, command_code, chat_message):
+    def complete_command(user_state, command_code, chat_message, router):
         pass
 
 
 class AuthSelectCardController(AbstractController):
     @staticmethod
-    def run_command(user_state, command_code, chat_message):
+    def run_command(user_state, command_code, chat_message, router):
 
         UserState.set_command_value(chat_message.chat_id, user_state, command_code, "")
         UserState.set_state(chat_message.chat_id, user_state, command_code)
 
-        user_view, view_params = RouteConfig.get_view(user_state, command_code, chat_message.chat_id)
+        user_view, view_params = router.get_view(user_state, command_code, chat_message.chat_id)
         
         render_context = AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING)
         view_render_extras = {'message_id': render_context['result']['message_id'], 'is_update': True}
         try:
-            user_cards = AlfaApi.get_cards(chat_id = chat_message.chat_id)
+            user_cards = []
+            cards_json = AlfaApi.get_cards(chat_id = chat_message.chat_id, user = User(chat_message.chat_id))
+            for card_obj in cards_json:
+                user_cards.append(UserCard(**card_obj))
+
             inline_buttons = []
             for card in user_cards:
                 inline_buttons.append([{'text': MessageText.CARD_NAME % card.number, 'callback_data': card.pack()}])
@@ -305,7 +315,7 @@ class AuthSelectCardController(AbstractController):
 
 
     @staticmethod
-    def complete_command(user_state, command_code, chat_message):
+    def complete_command(user_state, command_code, chat_message, router):
 
         view_render_extras = {} #need to add this data to update a view instead of redrawing
 
@@ -322,7 +332,7 @@ class AuthSelectCardController(AbstractController):
 
 class AuthTransferController(AbstractController):
     @staticmethod
-    def run_command(user_state, command_code, chat_message):
+    def run_command(user_state, command_code, chat_message, router):
 
         to_card_number = ""
         card_cvv = ""
@@ -336,7 +346,7 @@ class AuthTransferController(AbstractController):
         render_context = json.loads(UserState.get_command_context(chat_message.chat_id, user_state, UserState.STATE_AUTH_C_TRANSFER_SELECT_CARD))        
         view_render_extras = {'message_id': render_context['result']['message_id'], 'is_update': True}
 
-        user_view, view_params = RouteConfig.get_view(user_state, command_code, chat_message.chat_id)
+        user_view, view_params = router.get_view(user_state, command_code, chat_message.chat_id)
 
         to_card_number = ' '.join('{:-<16s}'.format(to_card_number))
         to_card_number = string.join([to_card_number[i: i+7]+'  ' for i in range(0, 32, 8)])
@@ -395,9 +405,9 @@ class AuthTransferController(AbstractController):
                                             user_card,
                                             command_value['to_card_number'],
                                             command_value['transfer_sum'],
-                                            chat_id=chat_message.chat_id)
+                                            chat_id=chat_message.chat_id, user = User(chat_message.chat_id))
 
-            AlfaApi.transfer_c2c_complete(md, chat_id=chat_message.chat_id)
+            AlfaApi.transfer_c2c_complete(md, chat_id=chat_message.chat_id, user = User(chat_message.chat_id))
             card_add_success = True
         except AlfaApiError:
             error = ErrorText.ERROR_BANK_ERROR_INLINE
@@ -405,7 +415,7 @@ class AuthTransferController(AbstractController):
      
 
     @staticmethod
-    def complete_command(user_state, command_code, chat_message):
+    def complete_command(user_state, command_code, chat_message, router):
         view_render_extras = {} #need to add this data to update a view instead of redrawing
         error = ""
         card_add_success = False #TODO: design the correct handling of the alfa API
@@ -425,7 +435,7 @@ class AuthTransferController(AbstractController):
             if key_code == ViewParams.KEYBOARD_KEY_OK:
                 card_add_success, error = AuthTransferController.check_result(chat_message, view_render_extras, command_value, user_card)
 
-            user_view, view_params = RouteConfig.get_view(user_state, command_code, chat_message.chat_id)
+            user_view, view_params = router.get_view(user_state, command_code, chat_message.chat_id)
 
             to_card_number = ' '.join('{:-<16s}'.format(command_value['to_card_number']))
             to_card_number = string.join([to_card_number[i: i+7]+'  ' for i in range(0, 32, 8)])
@@ -532,12 +542,12 @@ class RouteConfig(object):
             method_name = "complete_command"
             command_name = user_state['command_code']
 
-        method_results = getattr(RouteConfig.get_route(user_state['state'], command_name)['controller'], method_name)(user_state['state'], command_name, chat_message)
+        method_results = getattr(RouteConfig.get_route(user_state['state'], command_name)['controller'], method_name)(user_state['state'], command_name, chat_message, RouteConfig)
 
         if method_results:
             try:
                 if method_results['run_next']:
                     user_state = UserState.get_state(chat_message.chat_id)
-                    getattr(RouteConfig.get_route(user_state['state'], user_state['command_code'])['controller'], "run_command")(user_state['state'], user_state['command_code'], chat_message)
+                    getattr(RouteConfig.get_route(user_state['state'], user_state['command_code'])['controller'], "run_command")(user_state['state'], user_state['command_code'], chat_message, RouteConfig)
             except KeyError:
                 pass

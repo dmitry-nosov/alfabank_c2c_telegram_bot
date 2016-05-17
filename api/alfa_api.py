@@ -2,12 +2,13 @@
 from app_settings import AppSettings
 import base64
 import json
-from custom_exceptions import AlfaApiError
 from datetime import datetime
 import requests
-from models import User, UserCard
 import logging
 import time
+
+class AlfaApiError(Exception):
+    pass
 
 class AlfaApi(object):
 
@@ -25,9 +26,8 @@ class AlfaApi(object):
 
     def _authorized(f):
         def g(*args, **kwargs):
-            user = User(kwargs['chat_id'])
+            user = kwargs['user']
             headers = {"Authorization": "Bearer %s" % user.access_token}
-            kwargs['user'] = user
             kwargs['headers'] = headers
             return f(*args, **kwargs)
         return g
@@ -60,8 +60,8 @@ class AlfaApi(object):
             "/uapidemo/api/oauth/users/authorize?sender=%s&alerttype=sms" %
             phone_number,
             headers=headers)
-        user_obj = json.loads(r.text)
-        User.add(chat_id, "user_id", user_obj['user_id'])
+        return json.loads(r.text)
+        
 
     @staticmethod
     def send_sms_code(chat_id, phone_number, sms_code):
@@ -77,9 +77,8 @@ class AlfaApi(object):
             (phone_number,
              sms_code),
             headers=headers)
-        user_obj = json.loads(r.text)
-        User.add(chat_id, "access_token", user_obj['access_token'])
-        User.add(chat_id, "refresh_token", user_obj['refresh_token'])
+        return json.loads(r.text)
+
 
     @staticmethod
     @_authorized
@@ -99,10 +98,7 @@ class AlfaApi(object):
             "/uapidemo/api/v1/users/%s/cards" %
             kwargs['user'].user_id,
             headers=kwargs['headers'])
-        cards_json = json.loads(r.text)
-        for card_obj in cards_json:
-            user_cards.append(UserCard(**card_obj))
-        return user_cards
+        return json.loads(r.text)
 
     @staticmethod
     @_authorized

@@ -4,5 +4,3 @@
 class ChatMessageNotPrivate(Exception):
     pass
 
-class AlfaApiError(Exception):
-    pass
