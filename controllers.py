@@ -42,7 +42,7 @@ class GetPhoneController(AbstractController):
             view_render_extras = {'message_id': render_context['result']['message_id'], 'is_update': True}
 
             try:                
-                user_obj = AlfaApi.send_phone_number(chat_message.chat_id, chat_message.phone)  
+                user_obj = AlfaApi.send_phone_number(chat_message.phone)  
                 User.add(chat_message.chat_id, "user_id", user_obj['user_id'])
 
                 UserState.set_command_value(chat_message.chat_id, user_state, command_code, chat_message.phone) #fill phone number
@@ -134,7 +134,7 @@ class VerifyPhoneController(AbstractController):
             or (chat_message.voice)):
             try:
                 AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
-                user_obj = AlfaApi.send_sms_code(chat_message.chat_id, phone_number, sms_code)  
+                user_obj = AlfaApi.send_sms_code(phone_number, sms_code)  
                 
                 User.add(chat_id, "access_token", user_obj['access_token'])
                 User.add(chat_id, "refresh_token", user_obj['refresh_token'])
@@ -228,7 +228,7 @@ class NoCardAddCardController(AbstractController):
         error = ""
         try:
             AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
-            AlfaApi.add_card(command_value['card_number'], '20%s%s' % (command_value['card_year'], command_value['card_month']), chat_id = chat_message.chat_id, user = User(chat_message.chat_id))
+            AlfaApi.add_card(command_value['card_number'], '20%s%s' % (command_value['card_year'], command_value['card_month']), user = User(chat_message.chat_id))
             card_add_success = True
         except AlfaApiError:
             error = ErrorText.ERROR_BANK_ERROR_INLINE
@@ -297,7 +297,7 @@ class AuthSelectCardController(AbstractController):
         view_render_extras = {'message_id': render_context['result']['message_id'], 'is_update': True}
         try:
             user_cards = []
-            cards_json = AlfaApi.get_cards(chat_id = chat_message.chat_id, user = User(chat_message.chat_id))
+            cards_json = AlfaApi.get_cards(user = User(chat_message.chat_id))
             for card_obj in cards_json:
                 user_cards.append(UserCard(**card_obj))
 
@@ -405,9 +405,9 @@ class AuthTransferController(AbstractController):
                                             user_card,
                                             command_value['to_card_number'],
                                             command_value['transfer_sum'],
-                                            chat_id=chat_message.chat_id, user = User(chat_message.chat_id))
+                                            user = User(chat_message.chat_id))
 
-            AlfaApi.transfer_c2c_complete(md, chat_id=chat_message.chat_id, user = User(chat_message.chat_id))
+            AlfaApi.transfer_c2c_complete(md, user = User(chat_message.chat_id))
             card_add_success = True
         except AlfaApiError:
             error = ErrorText.ERROR_BANK_ERROR_INLINE

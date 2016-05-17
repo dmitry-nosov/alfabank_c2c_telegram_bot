@@ -48,7 +48,7 @@ class AlfaApi(object):
 
     @staticmethod
     @_restart_if_fails
-    def send_phone_number(chat_id, phone_number):
+    def send_phone_number(phone_number):
         headers = {
             "Authorization": "Basic %s" %
             base64.b64encode(
@@ -64,7 +64,7 @@ class AlfaApi(object):
         
 
     @staticmethod
-    def send_sms_code(chat_id, phone_number, sms_code):
+    def send_sms_code(phone_number, sms_code):
         headers = {
             "Authorization": "Basic %s" %
             base64.b64encode(
