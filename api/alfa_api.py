@@ -40,10 +40,11 @@ class AlfaApi(object):
         except (requests.exceptions.ConnectionError, requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout):
             raise AlfaApiError
         logging.info("[ALFA REQUEST TIME] %s" % (time.time() - current_time))
+        logging.info(r.text)
 
         if r.status_code != requests.codes.ok:
             raise AlfaApiError
-        logging.info(r.text)
+
         return r
 
     @staticmethod
