@@ -38,7 +38,7 @@ class GetPhoneController(AbstractController):
     def complete_command(user_state, command_code, chat_message, router):
 
         if chat_message.phone:
-            render_context = AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING)
+            render_context = AbstractView.show_toast(chat_message.chat_id, MessageText.STATE_AUTH_LOADING)
             view_render_extras = {'message_id': render_context['result']['message_id'], 'is_update': True}
 
             try:                
@@ -48,7 +48,7 @@ class GetPhoneController(AbstractController):
                 UserState.set_command_value(chat_message.chat_id, user_state, command_code, chat_message.phone) #fill phone number
                 command_code = UserState.STATE_UNAUTH_C_VERIFY_PHONE            
                 UserState.set_state(chat_message.chat_id, user_state, command_code)                
-                AbstractView.render_loader(chat_message.chat_id, MessageText.MESSAGE_CORRECT_PHONE, view_render_extras)
+                AbstractView.show_toast(chat_message.chat_id, MessageText.MESSAGE_CORRECT_PHONE, view_render_extras)
                 return {"run_next": True}
 
             except AlfaApiError:
@@ -57,7 +57,7 @@ class GetPhoneController(AbstractController):
                 view_params.update(view_render_extras)
                 user_view.render(**view_params)
         else:            
-            AbstractView.render_loader(chat_message.chat_id, ErrorText.ERROR_NO_PHONE)           
+            AbstractView.show_toast(chat_message.chat_id, ErrorText.ERROR_NO_PHONE)           
 
 
 class VerifyPhoneController(AbstractController):
@@ -97,7 +97,7 @@ class VerifyPhoneController(AbstractController):
 
     @staticmethod
     def update_sms_code_by_audio(chat_message, view_params, sms_code):
-        render_context = AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING)           
+        render_context = AbstractView.show_toast(chat_message.chat_id, MessageText.STATE_AUTH_LOADING)           
         sms_code = chat_message.process_audio_input(chat_message.voice_file_id)[:6]
         view_render_extras = {'message_id': render_context['result']['message_id'], 'is_update': True}
         view_params.update(view_render_extras)
@@ -133,7 +133,7 @@ class VerifyPhoneController(AbstractController):
         if ((chat_message.message_type == ChatMessage.UPDATE_TYPE_CALLBACK) and (key_code == ViewParams.KEYBOARD_KEY_OK)
             or (chat_message.voice)):
             try:
-                AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
+                AbstractView.show_toast(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
                 user_obj = AlfaApi.send_sms_code(phone_number, sms_code)  
                 
                 User.add(chat_id, "access_token", user_obj['access_token'])
@@ -227,7 +227,7 @@ class NoCardAddCardController(AbstractController):
         card_add_success = False
         error = ""
         try:
-            AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
+            AbstractView.show_toast(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
             AlfaApi.add_card(command_value['card_number'], '20%s%s' % (command_value['card_year'], command_value['card_month']), user = User(chat_message.chat_id))
             card_add_success = True
         except AlfaApiError:
@@ -275,7 +275,7 @@ class NoCardAddCardController(AbstractController):
             user_view.render(**view_params)            
             return return_value
         else:           
-            AbstractView.render_loader(chat_message.chat_id, ErrorText.ERROR_INPUT_UNSUPPORTED)
+            AbstractView.show_toast(chat_message.chat_id, ErrorText.ERROR_INPUT_UNSUPPORTED)
 
 
 class AuthInitController(AbstractController):
@@ -293,7 +293,7 @@ class AuthSelectCardController(AbstractController):
 
         user_view, view_params = router.get_view(user_state, command_code, chat_message.chat_id)
         
-        render_context = AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING)
+        render_context = AbstractView.show_toast(chat_message.chat_id, MessageText.STATE_AUTH_LOADING)
         view_render_extras = {'message_id': render_context['result']['message_id'], 'is_update': True}
         try:
             user_cards = []
@@ -311,7 +311,7 @@ class AuthSelectCardController(AbstractController):
             user_view.render(**view_params)
 
         except AlfaApiError:
-            AbstractView.render_loader(chat_message.chat_id, ErrorText.ERROR_BANK_ERROR_TOAST, view_render_extras)
+            AbstractView.show_toast(chat_message.chat_id, ErrorText.ERROR_BANK_ERROR_TOAST, view_render_extras)
 
 
     @staticmethod
@@ -323,12 +323,12 @@ class AuthSelectCardController(AbstractController):
             view_render_extras = {'message_id': chat_message.message_id, 'is_update': True}
             UserState.set_command_value(chat_message.chat_id, user_state, command_code, chat_message.data)
 
-            render_context = AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
+            render_context = AbstractView.show_toast(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
             UserState.set_command_context(chat_message.chat_id, user_state, command_code, json.dumps(render_context))
             UserState.set_state(chat_message.chat_id, user_state, UserState.STATE_AUTH_C_TRANSFER_TRANSFER)
             return {'run_next': True}
         else:
-            AbstractView.render_loader(chat_message.chat_id, ErrorText.ERROR_INPUT_UNSUPPORTED, view_render_extras)
+            AbstractView.show_toast(chat_message.chat_id, ErrorText.ERROR_INPUT_UNSUPPORTED, view_render_extras)
 
 class AuthTransferController(AbstractController):
     @staticmethod
@@ -399,7 +399,7 @@ class AuthTransferController(AbstractController):
         error = ""
         card_add_success = False
         try:
-            AbstractView.render_loader(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
+            AbstractView.show_toast(chat_message.chat_id, MessageText.STATE_AUTH_LOADING, view_render_extras)
 
             md = AlfaApi.transfer_c2c_init(command_value['card_cvv'], 
                                             user_card,
@@ -457,7 +457,7 @@ class AuthTransferController(AbstractController):
             view_params.update(view_render_extras)
             user_view.render(**view_params)            
         else:
-            AbstractView.render_loader(chat_message.chat_id, ErrorText.ERROR_INPUT_UNSUPPORTED, view_render_extras)
+            AbstractView.show_toast(chat_message.chat_id, ErrorText.ERROR_INPUT_UNSUPPORTED, view_render_extras)
 
 class RouteConfig(object):
 

@@ -49,7 +49,7 @@ class AbstractView(object):
             return {}
 
     @staticmethod
-    def render_loader(chat_id, text, view_render_extras={}):
+    def show_toast(chat_id, text, view_render_extras={}):
         view_params = {'view_type': ViewParams.VIEW_SIMPLE, 'text': text}
         view_params.update({'chat_id': chat_id})
         view_params.update(view_render_extras)
