@@ -518,18 +518,13 @@ class RouteConfig(object):
 
     @staticmethod
     def process_update(update):
+    
         try:
-            message = update['callback_query']
-            update_type = ChatMessage.UPDATE_TYPE_CALLBACK            
-        except KeyError:
-            message = update['message']
-            update_type = ChatMessage.UPDATE_TYPE_MESSAGE
-
-        try:
-            chat_message = ChatMessage(message, message_type=update_type)
+            chat_message = ChatMessage(update)
         except ChatMessageNotPrivate: #message must be private
             logging.info("Wrong group type")
             return
+
         user_state = UserState.get_state(chat_message.chat_id)
 
         if chat_message.is_command:

@@ -37,7 +37,7 @@ class ChatMessage(object):
             pass
         return bot_commands
 
-    def __init__(self, message, message_type=UPDATE_TYPE_MESSAGE):
+    def __init__(self, update):
         self.is_command = False
         self.command_code = ""
         self.data = ""
@@ -45,8 +45,16 @@ class ChatMessage(object):
         self.has_voice = False
         self.voice_file_id = ""
         self.phone = ""
+
+        try:
+            message = update['callback_query']
+            message_type = ChatMessage.UPDATE_TYPE_CALLBACK            
+        except KeyError:
+            message = update['message']
+            message_type = ChatMessage.UPDATE_TYPE_MESSAGE                
         self.message_type = message_type
-        if message_type == ChatMessage.UPDATE_TYPE_CALLBACK:
+        
+        if self.message_type == ChatMessage.UPDATE_TYPE_CALLBACK:
             self.data = message['data']
             message = message['message'] #reuse message from a callback parent
 
@@ -58,7 +66,7 @@ class ChatMessage(object):
 
         self.message_id = message['message_id'] #use in replies
 
-        if message_type == ChatMessage.UPDATE_TYPE_MESSAGE:        
+        if self.message_type == ChatMessage.UPDATE_TYPE_MESSAGE:        
             self.bot_commands = self.get_bot_commands(message)
             try:
                 self.phone = message['contact']['phone_number']
