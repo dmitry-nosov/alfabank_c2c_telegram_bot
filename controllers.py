@@ -528,21 +528,20 @@ class RouteConfig(object):
         user_state = UserState.get_state(chat_message.chat_id)
 
         if chat_message.is_command:
-            method_name = "run_command"
             if RouteConfig.command_fits_state(chat_message.command_code, user_state['state']):
                 command_name = chat_message.command_code
+                method_results = RouteConfig.get_route(user_state['state'], command_name)['controller'].run_command(user_state['state'], command_name, chat_message, RouteConfig)
             else:
                 return #just disregard the message
         else:
-            method_name = "complete_command"
             command_name = user_state['command_code']
-
-        method_results = getattr(RouteConfig.get_route(user_state['state'], command_name)['controller'], method_name)(user_state['state'], command_name, chat_message, RouteConfig)
+            method_results = RouteConfig.get_route(user_state['state'], command_name)['controller'].complete_command(user_state['state'], command_name, chat_message, RouteConfig)
+        
 
         if method_results:
             try:
                 if method_results['run_next']:
                     user_state = UserState.get_state(chat_message.chat_id)
-                    getattr(RouteConfig.get_route(user_state['state'], user_state['command_code'])['controller'], "run_command")(user_state['state'], user_state['command_code'], chat_message, RouteConfig)
+                    RouteConfig.get_route(user_state['state'], user_state['command_code'])['controller'].run_command(user_state['state'], user_state['command_code'], chat_message, RouteConfig)
             except KeyError:
                 pass
